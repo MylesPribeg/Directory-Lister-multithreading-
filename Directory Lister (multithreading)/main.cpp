@@ -15,12 +15,10 @@ std::vector<std::string> listDirectory(std::filesystem::path&& dir)
 
 	listing.push_back(dirStr);
 
-	//std::cout << "root name " << std::filesystem::exists(dir);
-
 	std::vector<std::future<std::vector<std::string>>> futures;
 	for (auto& p : std::filesystem::directory_iterator(dir))
 	{
-		std::cout << p.path().filename().string() << '\n';
+		//std::cout << p.path().filename().string() << '\n';
 		if (p.is_directory())
 		{
 			auto ftr = std::async(std::launch::async, &listDirectory, p.path().string());
@@ -49,13 +47,23 @@ int main() {
 
 	std::filesystem::path root("C:\\Users\\myles\\Desktop");
 
-	listDirectory(std::move(root));
-	auto ftr = std::async(std::launch::async, &listDirectory, root);
-
-	std::vector<std::string> listing = ftr.get();
-	for (std::string s : listing)
+	//listDirectory(std::move(root));
+	try
 	{
-		std::cout << s << std::endl;
+		auto ftr = std::async(std::launch::async, &listDirectory, std::move(root));
+
+		std::vector<std::string> listing = ftr.get();
+		for (std::string s : listing)
+		{
+			std::cout << s << std::endl;
+		}
 	}
-	
+	catch (std::exception& e)
+	{
+		std::cout << e.what() << std::endl;
+	}
+	catch (...)
+	{
+		std::cout << "Unknown exception\n";
+	}
 }
