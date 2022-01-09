@@ -11,17 +11,6 @@ struct Result
 {
 	std::vector<std::string> files;
 	std::vector<std::filesystem::path> dirs;
-
-	Result() {}
-	Result(Result && r) : dirs(std::move(r.dirs)), files(std::move(r.files)) {}
-	Result& operator=(Result && rhs) 
-	{
-		if (this != &rhs) {
-			dirs = std::move(rhs.dirs);
-			files = std::move(rhs.files);
-			return *this;
-		}
-	}
 };
 
 Result listDirectory(std::filesystem::path&& dir) 
@@ -74,8 +63,8 @@ int main() {
 				std::future ftr = std::move(futures.back());
 				futures.pop_back();
 				Result res = std::move(ftr.get()); //move constructor is implicitly generated
-				std::move(res.files.begin(), res.files.end(), std::back_inserter(files));
-				std::move(res.dirs.begin(), res.dirs.end(), std::back_inserter(dirsToDo));
+				std::copy(res.files.begin(), res.files.end(), std::back_inserter(files));
+				std::copy(res.dirs.begin(), res.dirs.end(), std::back_inserter(dirsToDo));
 
 			}
 			
