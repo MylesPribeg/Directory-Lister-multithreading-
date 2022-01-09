@@ -7,63 +7,82 @@
 #include <vector>
 #include <string>
 
-std::vector<std::string> listDirectory(std::filesystem::path&& dir) 
+struct Result
 {
-	std::vector<std::string> listing;
-	std::string dirStr("\n> ");
-	dirStr += dir.string() + ":\n ";
+	std::vector<std::string> files;
+	std::vector<std::filesystem::path> dirs;
+};
 
-	listing.push_back(dirStr);
+Result listDirectory(std::filesystem::path&& dir) 
+{
+	Result result;
 
-	std::vector<std::future<std::vector<std::string>>> futures;
 	for (auto& p : std::filesystem::directory_iterator(dir))
 	{
 		//std::cout << p.path().filename().string() << '\n';
 		if (p.is_directory())
 		{
+			result.dirs.push_back(p.path().string());
 			auto ftr = std::async(std::launch::async, &listDirectory, p.path().string());
-			futures.push_back(std::move(ftr));
+
 		}
 		else
 		{
-			listing.push_back(std::move(p.path().filename().string()));
+			result.files.push_back(p.path().filename().string());
 		}
 
-
 	}
-
-	std::for_each(futures.begin(), futures.end(), [&](std::future<std::vector<std::string>>& ftr) {
-		std::vector<std::string> list = ftr.get();
-		std::copy(list.begin(), list.end(), std::back_inserter(listing));
-
-		});
-
-
-	return listing;
+	return result;
 
 }
 
 int main() {
-
+	auto startTime = std::chrono::system_clock::now();
 	std::filesystem::path root("C:\\Users\\myles\\Desktop");
 
-	//listDirectory(std::move(root));
-	try
-	{
-		auto ftr = std::async(std::launch::async, &listDirectory, std::move(root));
+	std::vector<std::filesystem::path> dirsToDo;
+	dirsToDo.push_back(root);
 
-		std::vector<std::string> listing = ftr.get();
-		for (std::string s : listing)
+	std::vector<std::string> files;
+
+	//listDirectory(std::move(root));
+	while (!dirsToDo.empty())
+	{
+		std::vector<std::future<Result>> futures;
+		for (int i = 0; i < 16 && !dirsToDo.empty(); i++)
 		{
-			std::cout << s << std::endl;
+			auto ftr = std::async(listDirectory, std::move(dirsToDo.back()));
+			dirsToDo.pop_back();
+			futures.push_back(std::move(ftr));
+		} 
+
+		try
+		{
+			while (!futures.empty())
+			{
+				std::future ftr = std::move(futures.back());
+				futures.pop_back();
+				Result res = std::move(ftr.get()); //move constructor is implicitly generated
+				std::copy(res.files.begin(), res.files.end(), std::back_inserter(files));
+				std::copy(res.dirs.begin(), res.dirs.end(), std::back_inserter(dirsToDo));
+
+			}
+			
+			for (std::string s : files)
+			{
+				std::cout << s << std::endl;
+			}
+		}
+		catch (std::exception& e)
+		{
+			std::cout << e.what() << std::endl;
+		}
+		catch (...)
+		{
+			std::cout << "Unknown exception\n";
 		}
 	}
-	catch (std::exception& e)
-	{
-		std::cout << e.what() << std::endl;
-	}
-	catch (...)
-	{
-		std::cout << "Unknown exception\n";
-	}
+	auto endTime = std::chrono::system_clock::now();
+	auto durMs = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+	std::cout << "\n\nCompleted in " << durMs << std::endl;
 }
