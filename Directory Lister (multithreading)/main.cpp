@@ -30,8 +30,10 @@ public:
 	std::vector<std::filesystem::path> get_dirs(int n)
 	{
 		std::vector<std::filesystem::path> retDirs;
-		std::lock_guard<std::mutex> lck(mutex);
-
+		//std::lock_guard<std::mutex> lck(mutex); // (**)This is only called from a single thread so it doesn't need
+												  // a lock. However, we have to be careful when making future changes
+												  // to the program so that we do not at some point end up calling this 
+												  // from more than one thread at a time.
 		for (int i = 0; i < n && !result.dirs.empty(); i++)
 		{
 			retDirs.push_back(std::move(result.dirs.back()));
@@ -42,12 +44,12 @@ public:
 	}
 	bool is_dirs_empty()
 	{
-		std::lock_guard<std::mutex> lck(mutex);
+		//std::lock_guard<std::mutex> lck(mutex); //same as (**)
 		return result.dirs.empty();
 	}
 	void print_files()
 	{
-		std::lock_guard<std::mutex> lck(mutex);
+		//std::lock_guard<std::mutex> lck(mutex); //same as (**)
 		for (std::string s : result.files)
 		{
 			std::cout << s << std::endl;
@@ -63,12 +65,9 @@ void listDirectory(std::filesystem::path&& dir, MonitorResult& result)
 {
 	for (auto& p : std::filesystem::directory_iterator(dir))
 	{
-		//std::cout << p.path().filename().string() << '\n';
 		if (p.is_directory())
 		{
 			result.put_dir(p.path().string());
-			//auto ftr = std::async(std::launch::async, &listDirectory, p.path().string());
-
 		}
 		else
 		{
@@ -83,10 +82,8 @@ int main() {
 	auto startTime = std::chrono::system_clock::now();
 	std::filesystem::path root("C:\\Users\\myles\\Desktop");
 	MonitorResult result;
-	//std::vector<std::filesystem::path> dirsToDo;
 	result.put_dir(std::move(root));
 
-	//listDirectory(std::move(root));
 	while (!result.is_dirs_empty())
 	{
 		std::vector<std::filesystem::path> dirsToDo = result.get_dirs(16);
